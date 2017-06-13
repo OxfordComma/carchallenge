@@ -1,12 +1,11 @@
-import discord
 import asyncio
+from bs4 import BeautifulSoup
 from itertools import chain
 import datetime
+import discord
 import pdb
-from lxml import html
-import requests
-from bs4 import BeautifulSoup
 import random
+import requests
 
 client = discord.Client()
 channel = discord.Object(id='273260866198175745')
@@ -20,25 +19,24 @@ async def on_ready():
 @client.event
 async def on_message(message):
     if message.content.startswith('!challenge'):
-        carstring = message.content[message.content.find(' ')+1:]
-        print('Challenge mode.' )
-        await car_search_loop('')
+        print('Challenge mode.')
+        await car_search_loop()
 
-async def car_search_loop(carstring):
+async def car_search_loop():
     while not client.is_closed:
-        await car_search(carstring)
+        await car_search()
 
         #Set Sleep Here
         randtime = random.random()
-        print('Sleeping for ' + str(1 + randtime))
+        print('Sleeping for ' + str(1 + randtime) + 'hours.')
         await asyncio.sleep(60 * 60 * (1 + randtime)) 
         
-async def car_search(car=''):    
-
+async def car_search(car=''):
+    global lastResults
     url_base = 'https://boston.craigslist.org/search/cta'
     query_car = [
     #'audi', 'mercedes', 'bmw', 'lexus', #luxury
-    'prelude', 'si', 'crx', 'cr-x', #honda
+    #'prelude', 'si', 'crx', 'cr-x', #honda
     #'240sx', '300zx', #nissan
     #'cobalt', 'camaro', 'corvette', 'ss',  #chevy
     #'g5', 'g6' , 'firebird', #pontiac
@@ -47,30 +45,31 @@ async def car_search(car=''):
     'gti', #VW
     #'viggen', #saab
     'celica', 'supra', #toyota
-    'miata', 'rx7', 'rx-7', 'rx8', 'rx-8', #mazda
     'impreza', 'wrx', #subaru
     'eclipse', #mitsubishi
     #'talon', #eagle?
+    'miata', 'rx*' #mazda
     ]
     query_other = ['-lease']
 
-    #build query string
-    querystring = ''
-    #add each item
-    #for item in query_car:
-    #    querystring += '%7C' + item
-    #remove leading '%7c'
-    querystring = querystring[3:]
-
-    for item in query_other:
-        querystring += '%20' + item
+    querystring  = ''
+    querystring += '|'.join(query_car)
+    querystring += ' '
+    querystring += ' '.join(query_other)
 
     print(querystring)
 
-
-
-    params = dict(bundleDuplicates=1, postal='02144', search_distance=200, min_price=500, max_price=1500)
+    params = dict(
+        query=querystring,
+        bundleDuplicates=1, 
+        postal='02144', 
+        search_distance=200, 
+        min_price=500, 
+        max_price=1500
+        )
+    print(params)
     rsp = requests.get(url_base, params=params)
+    print(rsp.raise_for_status())
 
     html = BeautifulSoup(rsp.text, 'html.parser')
     cars = html.find_all('p', attrs={'class':'result-info'})
@@ -83,9 +82,7 @@ async def car_search(car=''):
         time = car.find_all('time')[0].get('datetime')
         resultsWithDupes.append({'name':name, 'price':price, 'url':url, 'datetime':time})
     
-    print(resultsWithDupes)
     results = []
-    lastResults = []
     for n in resultsWithDupes:
         if n['name'] not in [d['name'] for d in results]:
             results.append(n)
@@ -93,7 +90,7 @@ async def car_search(car=''):
 
     narrowTo = 10
     print (str(len(results)) + ' results found.')
-    print ('Narrowing down to ' + str(narrowTo) + '.') 
+    print ('Narrowing down to ' + str(min(narrowTo, len(results))) + '.') 
     del results[narrowTo:]
     
     print('lastResults:' )
