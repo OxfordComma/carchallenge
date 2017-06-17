@@ -62,11 +62,15 @@ async def car_search(car=''):
 
     else:
         print('Found new results.')
-        get_detailed_results(results[0]['url'])
         for result in results:
             if  result not in lastResults:
+                #dr = get_detailed_results(result['url'])
                 print(result['name'])
-                desc = "{0} | {1} | {2} |<{3}>".format(result["datetime"],  result["price"], result["name"], result["url"])
+                desc = "{0} | {1} | {2} |<{3}>".format(
+                    result["datetime"],  
+                    result["price"], 
+                    result["name"], 
+                    result["url"])
                 await client.send_message(channel, desc)
 
     lastResults = results
@@ -101,7 +105,7 @@ def get_results():
         bundleDuplicates=1, 
         postal='02144', 
         search_distance=200, 
-        min_price=500, 
+        min_price=800, 
         max_price=1500
         )
     rsp = requests.get(url_base, params=params)
@@ -128,13 +132,16 @@ def get_detailed_results(url):
     html = BeautifulSoup(rsp.text, 'html.parser')
 
     model = html.find_all('p', attrs={'class':'attrgroup'})[0].find_all('b')[0].text
+    text = html.find('section', attrs{'id':'postingbody'}).text
     details = [n for n in html.find_all('p', attrs={'class':'attrgroup'})[1].get_text().split('\n') if n]
     info = {}
+    info['model'] = model
+    info['text'] = text
     for x in details:
         info_name = x[:x.find(':')]
         info_result = x[x.find(':')+2:]
         info[info_name] = info_result
-    #print(info)
+    print(info)
     return info
 
 
